@@ -36,3 +36,5 @@ print('Built',len(FILES),'assets plus thank-you page')
 
 css_path=OUT/'assets/style.css'
 css_path.write_text(css_path.read_text(encoding='utf-8')+'\n@media(max-width:700px){.hero-art{overflow:clip}}\n',encoding='utf-8')
+
+css_path.write_text(css_path.read_text(encoding='utf-8')+'\n.hp{left:0;right:auto;overflow:hidden;clip-path:inset(50%)}\n',encoding='utf-8')
