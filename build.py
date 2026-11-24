@@ -38,3 +38,34 @@ css_path=OUT/'assets/style.css'
 css_path.write_text(css_path.read_text(encoding='utf-8')+'\n@media(max-width:700px){.hero-art{overflow:clip}}\n',encoding='utf-8')
 
 css_path.write_text(css_path.read_text(encoding='utf-8')+'\n.hp{left:0;right:auto;overflow:hidden;clip-path:inset(50%)}\n',encoding='utf-8')
+# Keep initial rendering small and allow safe browser caching.
+import hashlib
+js_path=OUT/'assets/app.js'
+js=js_path.read_text(encoding='utf-8')
+start=js.index("for(const form of [$('#enquiryForm')")
+end=js.index("$('#copyUpi')",start)
+js=js[:start]+"for(const form of [$('#enquiryForm'),$('#newsletterForm')])form.addEventListener('submit',e=>{e.preventDefault();if(form.reportValidity())form.submit();});\n"+js[end:]
+js=js.replace("Promise.all([fetch('assets/font-catalog.json')", "let fontsLoaded=false;function loadFonts(){if(fontsLoaded)return;fontsLoaded=true;Promise.all([fetch('assets/font-catalog.json')")
+js=js.replace(";$('#fontSearch').addEventListener", ";}\nif('IntersectionObserver' in window){const fontObserver=new IntersectionObserver(entries=>{if(entries.some(e=>e.isIntersecting)){loadFonts();fontObserver.disconnect();}},{rootMargin:'200px'});fontObserver.observe($('#resources'));}else{loadFonts();}\n$('#fontSearch').addEventListener")
+js_path.write_text(js,encoding='utf-8')
+css=css_path.read_text(encoding='utf-8')
+css=re.sub(r'/\*.*?\*/','',css,flags=re.S)
+css=re.sub(r'\s+',' ',css).strip()
+css_path.write_text(css,encoding='utf-8')
+versions={}
+for original in ['assets/style.css','assets/app.js']:
+    data=(OUT/original).read_bytes()
+    path=Path(original)
+    hashed=str(path.with_name(path.stem+'-'+hashlib.sha256(data).hexdigest()[:12]+path.suffix)).replace('\\','/')
+    (OUT/hashed).write_bytes(data)
+    versions[original]=hashed
+for page in OUT.rglob('*.html'):
+    content=page.read_text(encoding='utf-8')
+    for original,hashed in versions.items():
+        content=re.sub(re.escape(original)+r'(?:\?v=\d+)?',hashed,content)
+    if page.name=='index.html':
+        content=content.replace('</head>','<link rel="preload" href="/assets/font-manrope.woff2" as="font" type="font/woff2" crossorigin></head>')
+        content=content.replace('src="assets/harsh.jpg"','src="assets/harsh.jpg" fetchpriority="high" decoding="async"')
+    content=content.replace('Harshs email inbox',"Harsh's email inbox")
+    page.write_text(content,encoding='utf-8')
+print('Performance build: lazy font previews, versioned CSS/JS and primary font preload')
